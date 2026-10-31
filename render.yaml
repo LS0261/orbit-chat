@@ -1,4 +1,3 @@
-cat > render.yaml <<'EOF'
 services:
   - type: web
     name: orbit-chat
@@ -13,5 +12,3 @@ services:
         value: production
       - key: SESSION_SECRET
         generateValue: true
-EOF
-
