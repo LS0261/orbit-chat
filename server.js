@@ -7,6 +7,7 @@ const helmet = require("helmet");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const multer = require("multer");
+const mime = require("mime-types");
 const initSqlJs = require("sql.js");
 const { Server } = require("socket.io");
 
@@ -93,13 +94,20 @@ app.use("/uploads", express.static(uploadDir));
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_, __, cb) => cb(null, uploadDir),
-    filename: (_, file, cb) => cb(null, crypto.randomUUID() + path.extname(file.originalname).toLowerCase())
+    filename: (_, file, cb) => {
+      const originalExt = path.extname(file.originalname || "").toLowerCase();
+      const inferredExt = mime.extension(file.mimetype || "");
+      const ext = originalExt || (inferredExt ? "." + inferredExt : "");
+      cb(null, crypto.randomUUID() + ext);
+    }
   }),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_, file, cb) => {
-    const allowedMime = /^(image\/(png|jpeg|gif|webp)|video\/(mp4|webm|quicktime)|audio\/(mpeg|ogg|wav|webm|mp4|aac|flac)|application\/(pdf|zip|json|octet-stream|msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel|vnd\.ms-powerpoint|rtf)|text\/(plain|csv|markdown))$/;
-    const allowedExt = new Set([".png",".jpg",".jpeg",".gif",".webp",".mp4",".webm",".mov",".mp3",".ogg",".wav",".m4a",".aac",".flac",".pdf",".zip",".json",".txt",".csv",".md",".rtf",".doc",".docx",".xls",".xlsx",".ppt",".pptx"]);
-    const valid = allowedMime.test(file.mimetype) || allowedExt.has(path.extname(file.originalname).toLowerCase());
+    const allowedMime = /^(image\/(png|jpeg|gif|webp|avif)|video\/(mp4|webm|quicktime)|audio\/(mpeg|ogg|wav|webm|mp4|aac|flac)|application\/(pdf|zip|json|octet-stream|msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel|vnd\.ms-powerpoint|rtf)|text\/(plain|csv|markdown))$/;
+    const allowedExt = new Set([".png",".jpg",".jpeg",".gif",".webp",".avif",".mp4",".webm",".mov",".mp3",".ogg",".wav",".m4a",".aac",".flac",".pdf",".zip",".json",".txt",".csv",".md",".rtf",".doc",".docx",".xls",".xlsx",".ppt",".pptx"]);
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const guessedMime = mime.lookup(ext) || file.mimetype;
+    const valid = allowedMime.test(file.mimetype) || allowedMime.test(guessedMime) || allowedExt.has(ext);
     cb(valid ? null : new Error("Tipo de archivo no permitido"), valid);
   }
 });
@@ -181,7 +189,8 @@ app.post("/api/profile", auth, async (req, res) => {
   res.json({ user: safeUser(user) });
 });
 app.post("/api/avatar", auth, upload.single("file"), async (req, res) => {
-  if (!req.file || !req.file.mimetype.startsWith("image/")) return res.status(400).json({ error: "Sube una imagen." });
+  const avatarMime = req.file && (req.file.mimetype || mime.lookup(req.file.originalname) || "");
+  if (!req.file || !String(avatarMime).startsWith("image/")) return res.status(400).json({ error: "Sube una imagen JPG, PNG, GIF, WebP o AVIF." });
   const url = "/uploads/" + req.file.filename;
   await run("UPDATE users SET avatar=? WHERE id=?", [url, req.session.userId]);
   const user = await get("SELECT * FROM users WHERE id=?", [req.session.userId]);
@@ -245,7 +254,10 @@ app.get("/api/messages/:userId", auth, async (req, res) => {
 });
 app.post("/api/upload", auth, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Archivo no válido." });
-  res.json({ url: "/uploads/" + req.file.filename, type: req.file.mimetype });
+  const detectedType = (req.file.mimetype && req.file.mimetype !== "application/octet-stream")
+    ? req.file.mimetype
+    : (mime.lookup(req.file.originalname) || req.file.mimetype || "application/octet-stream");
+  res.json({ url: "/uploads/" + req.file.filename, type: detectedType });
 });
 
 const onlineUsers = new Map();

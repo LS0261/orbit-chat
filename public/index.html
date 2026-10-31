@@ -87,7 +87,11 @@ async function importBackup(file){try{const data=JSON.parse(await file.text());i
 const statusNames={online:"En línea",idle:"Ausente",dnd:"No molestar",invisible:"Invisible",offline:"Desconectado"};
 function api(url,opts={}){return fetch(SERVER_URL+url,{...opts,credentials:"include",headers:{...(opts.body instanceof FormData?{}:{"Content-Type":"application/json"}),...(opts.headers||{})}}).then(async r=>{let d=await r.json();if(!r.ok)throw Error(d.error||"Error");return d})}
 function displayName(user){return user?.displayName?.trim()||user?.username||"Usuario"}
-function avatar(el,user){el.src=mediaUrl(user?.avatar)||"";el.style.display=user?.avatar?"block":"grid";el.alt=displayName(user);if(!user?.avatar)el.textContent=displayName(user).slice(0,1).toUpperCase()}
+function avatar(el,user){
+ const label=displayName(user), initial=(label.trim()[0]||"?").toUpperCase();
+ el.alt=label;el.onerror=()=>{el.onerror=null;el.src="data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="100%" height="100%" fill="#454852"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="Arial" font-size="42">${initial}</text></svg>`)};
+ if(user?.avatar){const url=mediaUrl(user.avatar);el.src=url+(url.includes("?")?"&":"?")+"v="+Date.now()}else el.onerror();
+}
 function showError(id,e){$(id).textContent=e.message}
 async function enter(user){
  me=user;$("auth").style.display="none";$("app").style.display="grid";$("myName").textContent=displayName(user);avatar($("myAvatar"),user);
@@ -132,7 +136,16 @@ function appendMessage(m){
  const body=document.createElement("div");body.className="msgbody";
  if(!grouped){const meta=document.createElement("div");meta.className="msgmeta";const strong=document.createElement("strong");strong.textContent=displayName(sender);const time=document.createElement("time");time.textContent=new Date(m.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});meta.append(strong,time);body.append(meta)}
  const text=document.createElement("div");text.className="bubble";text.textContent=m.body||"";
- if(m.mediaUrl){let media;if((m.mediaType||"").startsWith("image/")||m.mediaType==="image/gif"){media=document.createElement("img");media.src=mediaUrl(m.mediaUrl);media.alt="Archivo enviado"}else if((m.mediaType||"").startsWith("video/")){media=document.createElement("video");media.src=mediaUrl(m.mediaUrl);media.controls=true;media.playsInline=true}else if((m.mediaType||"").startsWith("audio/")){media=document.createElement("audio");media.src=mediaUrl(m.mediaUrl);media.controls=true}else{media=document.createElement("a");media.href=mediaUrl(m.mediaUrl);media.textContent="Abrir archivo";media.target="_blank";media.rel="noopener"}text.append(media)}
+ if(m.mediaUrl){
+  const url=mediaUrl(m.mediaUrl), type=(m.mediaType||"").toLowerCase(), pathPart=url.split("?")[0].split("#")[0];
+  const imageByExt=/\.(png|jpe?g|gif|webp|avif)$/i.test(pathPart), videoByExt=/\.(mp4|webm|mov)$/i.test(pathPart), audioByExt=/\.(mp3|ogg|wav|m4a|aac|flac)$/i.test(pathPart);
+  let media;
+  if(type.startsWith("image/")||imageByExt){media=document.createElement("img");media.src=url;media.alt="Imagen adjunta";media.loading="lazy";media.onerror=()=>{const link=document.createElement("a");link.href=url;link.textContent="No se pudo mostrar la imagen · Abrir archivo";link.target="_blank";link.rel="noopener";media.replaceWith(link)}}
+  else if(type.startsWith("video/")||videoByExt){media=document.createElement("video");media.src=url;media.controls=true;media.playsInline=true}
+  else if(type.startsWith("audio/")||audioByExt){media=document.createElement("audio");media.src=url;media.controls=true}
+  else{media=document.createElement("a");media.href=url;media.textContent="Abrir archivo";media.target="_blank";media.rel="noopener"}
+  text.append(media)
+ }
  body.append(text);wrap.append(img,body);box.append(wrap);if(nearBottom)box.scrollTop=box.scrollHeight;
 }
 async function sendMessage(body="",media=null){
@@ -146,18 +159,60 @@ $("login").onclick=async()=>{try{saveServer();let d=await api("/api/login",{meth
 $("register").onclick=async()=>{try{saveServer();let d=await api("/api/register",{method:"POST",body:JSON.stringify({username:$("username").value,password:$("password").value})});enter(d.user)}catch(e){showError("authError",e)}};
 $("logout").onclick=async()=>{await api("/api/logout",{method:"POST",body:"{}"});location.reload()};
 $("status").onchange=async()=>{await api("/api/status",{method:"POST",body:JSON.stringify({status:$("status").value})});me.status=$("status").value;$("myStatusText").textContent=statusNames[$("status").value]};
-async function uploadChatFile(file){if(!file)return;if(file.size>10*1024*1024){alert("Máximo 10 MB");return}const fd=new FormData();fd.append("file",file,file.name||"archivo");try{const d=await api("/api/upload",{method:"POST",body:fd});await sendMessage("",{...d,url:mediaUrl(d.url)})}catch(e){alert(e.message)}}
-async function pickedAsFile(item){let blob=item.blob;if(!blob){const source=item.webPath||(item.path&&window.OrbitFilePicker?.Capacitor?.convertFileSrc(item.path));if(!source)throw Error("No se pudo leer el archivo seleccionado.");const response=await fetch(source);if(!response.ok)throw Error("No se pudo abrir el archivo seleccionado.");blob=await response.blob()}return new File([blob],item.name||"archivo",{type:item.mimeType||blob.type||"application/octet-stream"})}
-async function chooseGallery(){try{if(window.OrbitFilePicker?.FilePicker){const result=await window.OrbitFilePicker.FilePicker.pickMedia({limit:1});if(result.files?.[0])await uploadChatFile(await pickedAsFile(result.files[0]));}else $("file").click()}catch(e){if(e.message)alert(e.message)}$("attachModal").style.display="none"}
+async function uploadChatFile(file){
+ if(!file)return;
+ if(file.size>10*1024*1024){alert("Máximo 10 MB");return}
+ const fd=new FormData();fd.append("file",file,file.name||"archivo");
+ try{const d=await api("/api/upload",{method:"POST",body:fd});await sendMessage("",d)}catch(e){alert("No se pudo subir el archivo: "+e.message)}
+}
+async function pickedAsFile(item){
+ let blob=item.blob||null;
+ const name=item.name||"archivo";
+ if(!blob&&item.data){
+  const raw=String(item.data), parts=raw.match(/^data:([^;,]+)?;base64,(.*)$/s);
+  const base64=parts?parts[2]:raw, binary=atob(base64), bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  blob=new Blob([bytes],{type:parts?.[1]||item.mimeType||""});
+ }
+ if(!blob){
+  const candidates=[];
+  if(item.webPath)candidates.push(item.webPath);
+  if(item.path){
+   candidates.push(item.path);
+   try{const converted=window.OrbitFilePicker?.Capacitor?.convertFileSrc(item.path);if(converted)candidates.push(converted)}catch{}
+  }
+  let lastError;
+  for(const source of [...new Set(candidates)]){try{const response=await fetch(source);if(!response.ok)throw Error("HTTP "+response.status);blob=await response.blob();if(blob.size)break}catch(e){lastError=e}}
+  if(!blob||!blob.size)throw Error(lastError?.message||"No se pudo leer la imagen seleccionada. Intenta elegirla otra vez.");
+ }
+ const ext=(name.match(/\.([a-z0-9]+)$/i)||[])[1]?.toLowerCase()||"";
+ const extTypes={jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",gif:"image/gif",webp:"image/webp",avif:"image/avif",mp4:"video/mp4",webm:"video/webm",mov:"video/quicktime",mp3:"audio/mpeg",ogg:"audio/ogg",wav:"audio/wav",m4a:"audio/mp4",aac:"audio/aac",flac:"audio/flac",pdf:"application/pdf",zip:"application/zip"};
+ let type=item.mimeType||blob.type||extTypes[ext]||"application/octet-stream";
+ if(type==="application/octet-stream"&&extTypes[ext])type=extTypes[ext];
+ return new File([blob],name,{type});
+}
+async function chooseGallery(){try{if(window.OrbitFilePicker?.FilePicker){const result=await window.OrbitFilePicker.FilePicker.pickMedia({limit:1});if(result.files?.[0])await uploadChatFile(await pickedAsFile(result.files[0]));else return;}else $("file").click()}catch(e){alert("No se pudo seleccionar el contenido: "+e.message)}$("attachModal").style.display="none"}
 async function chooseOtherFile(){try{if(window.OrbitFilePicker?.FilePicker){const result=await window.OrbitFilePicker.FilePicker.pickFiles({limit:1});if(result.files?.[0])await uploadChatFile(await pickedAsFile(result.files[0]));}else $("fileAny").click()}catch(e){if(e.message)alert(e.message)}$("attachModal").style.display="none"}
-async function chooseAvatar(){try{let file;if(window.OrbitFilePicker?.FilePicker){const result=await window.OrbitFilePicker.FilePicker.pickImages({limit:1});if(result.files?.[0])file=await pickedAsFile(result.files[0])}else{$("avatarFile").click();return}if(!file)return;if(!file.type.startsWith("image/"))throw Error("Selecciona una imagen.");if(file.size>10*1024*1024)throw Error("La imagen supera 10 MB.");const fd=new FormData();fd.append("file",file,file.name);const d=await api("/api/avatar",{method:"POST",body:fd});me.avatar=d.avatar;avatar($("myAvatar"),me)}catch(e){alert(e.message)}}
+async function chooseAvatar(){
+ try{
+  if(!window.OrbitFilePicker?.FilePicker){$("avatarFile").click();return}
+  const result=await window.OrbitFilePicker.FilePicker.pickImages({limit:1});
+  if(!result.files?.[0])return;
+  const file=await pickedAsFile(result.files[0]);
+  if(!file.type.startsWith("image/"))throw Error("El archivo seleccionado no parece ser una imagen.");
+  if(file.size>10*1024*1024)throw Error("La imagen supera 10 MB.");
+  const fd=new FormData();fd.append("file",file,file.name);
+  const d=await api("/api/avatar",{method:"POST",body:fd});
+  me.avatar=d.avatar;avatar($("myAvatar"),me);await refresh();
+ }catch(e){alert("No se pudo cambiar la foto: "+e.message)}
+}
 $("avatarBtn").onclick=chooseAvatar;$("myAvatar").onclick=chooseAvatar;
 $("attach").onclick=()=>$("attachModal").style.display="grid";
 $("pickGallery").onclick=chooseGallery;$("pickOther").onclick=chooseOtherFile;$("cancelAttach").onclick=()=>$("attachModal").style.display="none";
 $("attachModal").onclick=e=>{if(e.target===$("attachModal"))$("attachModal").style.display="none"};
 $("file").onchange=()=>{const f=$("file").files[0];if(f)uploadChatFile(f);$("file").value=""};
 $("fileAny").onchange=()=>{const f=$("fileAny").files[0];if(f)uploadChatFile(f);$("fileAny").value=""};
-$("avatarFile").onchange=async()=>{const file=$("avatarFile").files[0];if(!file)return;const fd=new FormData();fd.append("file",file);try{const d=await api("/api/avatar",{method:"POST",body:fd});me.avatar=d.avatar;avatar($("myAvatar"),me)}catch(e){alert(e.message)}$("avatarFile").value=""};
+$("avatarFile").onchange=async()=>{const file=$("avatarFile").files[0];if(!file)return;const fd=new FormData();fd.append("file",file,file.name);try{const d=await api("/api/avatar",{method:"POST",body:fd});me.avatar=d.avatar;avatar($("myAvatar"),me);await refresh()}catch(e){alert("No se pudo cambiar la foto: "+e.message)}$("avatarFile").value=""};
 $("gif").onclick=()=>{let url=prompt("Pega el enlace directo del GIF (por ejemplo, de Tenor o Giphy):");if(url){try{let u=new URL(url);if(!["http:","https:"].includes(u.protocol))throw Error();sendMessage("",{url:u.href,type:"image/gif"})}catch{alert("Enlace no válido")}}};
 $("send").onclick=()=>sendMessage($("messageInput").value);
 $("messageInput").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage($("messageInput").value)}};

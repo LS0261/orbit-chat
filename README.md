@@ -1,4 +1,4 @@
-# Orbit Chat 1.3 — Android + respaldo local
+# Orbit Chat 1.3.1 — Android + respaldo local
 
 Este proyecto contiene el servidor web (Express/Socket.IO/sql.js), el frontend adaptable a móvil y la configuración Capacitor para generar un APK Android. El APK necesita conectarse a un servidor Orbit Chat público: al abrirlo, escribe la URL HTTPS del servidor en el campo **Servidor de Orbit Chat**.
 
@@ -64,6 +64,14 @@ En la pantalla de acceso, en **Servidor de Orbit Chat**, escribe la URL HTTPS qu
 - El chat conserva la posición de lectura si estás revisando mensajes anteriores y solo baja automáticamente cuando ya estabas al final.
 - Avisos dentro de la app y notificaciones del sistema cuando el permiso está disponible. Las notificaciones de sistema no son push garantizadas si Android suspende o cierra la app; para eso haría falta configurar un servicio push.
 - Se amplió la carga de archivos comunes (PDF, documentos, hojas de cálculo, presentaciones y archivos de texto), manteniendo el límite de 10 MB.
+
+## 6. Correcciones de imágenes en 1.3.1
+
+- Se normaliza el tipo MIME de los archivos usando también su extensión, para que las fotos seleccionadas desde Android no terminen tratadas como documentos genéricos.
+- El selector multimedia intenta leer las rutas disponibles del proveedor de Android y reconoce los formatos habituales de imagen, vídeo y audio.
+- Los mensajes identifican imágenes también por la extensión del archivo y muestran un enlace alternativo si la vista previa no puede cargarse.
+- La actualización de la foto de perfil refresca el avatar y la lista de amigos; los avatares sin foto muestran una inicial.
+- Se conserva la preparación web mediante la API de esbuild para evitar ejecutar el binario ELF como JavaScript en GitHub Actions.
 
 ## Notas
 
