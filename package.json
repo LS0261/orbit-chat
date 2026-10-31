@@ -1,0 +1,27 @@
+{
+  "name": "orbit-chat",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Orbit Chat web server and Android wrapper",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "build:web": "node scripts/prepare-web.js",
+    "android:init": "npm run build:web && cap add android",
+    "android:sync": "npm run build:web && cap sync android"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "helmet": "^8.0.0",
+    "mime-types": "^2.1.35",
+    "multer": "^2.0.2",
+    "socket.io": "^4.8.1",
+    "sql.js": "^1.13.0"
+  },
+  "devDependencies": { "@capacitor/cli": "^7.4.3" }
+}

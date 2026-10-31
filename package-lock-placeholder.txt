@@ -1,0 +1,1 @@
+No se incluye package-lock.json; npm install lo generará en Termux y GitHub Actions.

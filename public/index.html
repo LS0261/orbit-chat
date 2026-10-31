@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orbit Chat</title>
+<style>
+:root{--bg:#1e1f22;--panel:#2b2d31;--panel2:#232428;--line:#3b3d44;--text:#f2f3f5;--muted:#aeb1b8;--accent:#5865f2;--green:#23a55a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,Arial}button,input{font:inherit}button{cursor:pointer;border:0;border-radius:7px;padding:9px 12px;background:var(--accent);color:white}button.secondary{background:#41434a}button:disabled{opacity:.45;cursor:not-allowed}
+#auth{min-height:100vh;display:grid;place-items:center;padding:20px}.authbox{width:min(390px,100%);background:var(--panel);padding:28px;border-radius:14px}.authbox h1{margin-top:0}.authbox input{width:100%;margin:7px 0 12px;padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:white}.muted{color:var(--muted)}#app{height:100dvh;display:none;grid-template-columns:245px 1fr 230px;overflow:hidden}.sidebar{background:var(--panel2);padding:14px;display:flex;flex-direction:column;min-height:0}.brand{font-weight:800;font-size:20px;padding:8px 5px 18px}.section{font-size:11px;color:var(--muted);font-weight:800;letter-spacing:.08em;margin:17px 5px 7px}.userrow,.person{display:flex;align-items:center;gap:10px;padding:9px;border-radius:8px;cursor:pointer}.userrow:hover,.person:hover,.person.active{background:#3b3d44}.avatar{width:38px;height:38px;border-radius:50%;background:#454852;object-fit:cover;display:grid;place-items:center;font-weight:700;flex:none}.avatar.small{width:30px;height:30px}.dot{width:10px;height:10px;border-radius:50%;background:#80848e;border:2px solid var(--panel2);margin-left:-19px;margin-top:26px;flex:none}.dot.online{background:#23a55a}.dot.idle{background:#f0b232}.dot.dnd{background:#f23f43}.person-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.main{display:flex;flex-direction:column;min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 18px;gap:12px;font-weight:700}.chat{flex:1;overflow:auto;padding:18px}.empty{height:100%;display:grid;place-items:center;color:var(--muted);text-align:center}.msg{display:flex;gap:11px;margin:15px 0}.msgbody{min-width:0}.msgmeta{font-size:13px;margin-bottom:4px}.msgmeta strong{margin-right:7px}.msgmeta time{color:var(--muted);font-size:11px}.bubble{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}.bubble img,.bubble video{display:block;max-width:min(420px,100%);max-height:320px;border-radius:9px;margin-top:8px}.composer{padding:14px 18px 18px}.composebox{display:flex;gap:9px;align-items:center;background:#383a40;padding:9px;border-radius:10px}.composebox input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:white;padding:8px}.composebox button{flex:none}.right{border-left:1px solid var(--line)}.right .section{margin-top:15px}.rightcontent{padding:0 12px}.statusselect{background:#383a40;color:white;border:0;padding:8px;border-radius:7px;width:100%}.profile{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;display:flex;gap:9px;align-items:center}.profileinfo{min-width:0;flex:1}.profileinfo small{display:block;color:var(--muted)}.profile button{padding:7px}.notice{color:var(--muted);font-size:12px;padding:6px}.typing{height:20px;color:var(--muted);font-size:12px;padding:0 18px}.media-link{color:#9aa5ff}.error{color:#ff7777;min-height:20px;font-size:13px}.mobilehead{display:none}
+@media(max-width:850px){#app{grid-template-columns:190px 1fr}.right{display:none}}
+@media(max-width:560px){#app{grid-template-columns:72px 1fr}.sidebar{padding:9px 6px}.brand{font-size:0;text-align:center}.brand:after{content:"O";font-size:22px}.section{font-size:0;text-align:center}.section:after{content:"•••";font-size:12px}.person,.userrow{justify-content:center;padding:9px 3px}.person-name,.sidebar .profileinfo,.sidebar .profile button,.sidebar .notice{display:none}.sidebar .profile{justify-content:center}.sidebar .avatar{width:38px;height:38px}.dot{margin-left:-19px}.topbar{padding:0 12px}.chat{padding:10px}.composer{padding:8px}.composebox{gap:4px}.composebox button{padding:9px}.composebox input{width:30px}}
+</style>
+</head>
+<body>
+<section id="auth">
+ <div class="authbox">
+  <h1>Orbit Chat</h1><p class="muted">Tu espacio para hablar en tiempo real.</p>
+  <label>Nombre de usuario</label><input id="username" maxlength="20" placeholder="Tu nombre">
+  <label>Contraseña</label><input id="password" type="password" placeholder="Mínimo 8 caracteres">
+  <label>Servidor de Orbit Chat</label><input id="serverUrl" inputmode="url" placeholder="https://tu-servidor.onrender.com">
+  <p class="notice">Usa la dirección pública de tu servidor. En modo local puedes dejar la dirección actual.</p>
+  <div style="display:flex;gap:8px"><button id="login">Iniciar sesión</button><button class="secondary" id="register">Crear cuenta</button></div>
+  <p class="error" id="authError"></p>
+ </div>
+</section>
+<section id="app">
+ <aside class="sidebar">
+  <div class="brand">Orbit Chat</div>
+  <div class="section">MENSAJES DIRECTOS</div>
+  <div id="friendList"></div>
+  <div class="section">SOLICITUDES</div>
+  <div id="requests"></div>
+  <div class="section">BUSCAR PERSONAS</div>
+  <div id="people"></div>
+  <div class="profile">
+   <img class="avatar" id="myAvatar" alt="">
+   <div class="profileinfo"><strong id="myName"></strong><small id="myStatusText">En línea</small></div>
+   <button class="secondary" id="avatarBtn" title="Cambiar foto">📷</button>
+   <button class="secondary" id="backupExport" title="Exportar copia">⬇</button>
+   <button class="secondary" id="backupImport" title="Importar copia">⬆</button>
+   <button class="secondary" id="logout" title="Salir">↪</button>
+   <input id="backupFile" type="file" accept="application/json,.json" hidden>
+   <input id="avatarFile" type="file" accept="image/*" hidden>
+  </div>
+ </aside>
+ <main class="main">
+  <header class="topbar"><span id="chatAvatar" class="avatar small">?</span><span id="chatTitle">Selecciona un amigo</span><span id="chatStatus" class="muted"></span><span style="margin-left:auto;display:flex;gap:6px"><button class="secondary" id="backupExportTop" title="Exportar copia">⬇</button><button class="secondary" id="backupImportTop" title="Importar copia">⬆</button></span></header>
+  <div class="chat" id="messages"><div class="empty">Añade amigos y selecciona uno para comenzar.</div></div>
+  <div class="typing" id="typing"></div>
+  <div class="composer">
+   <div class="composebox">
+    <button class="secondary" id="attach" title="Adjuntar imagen, vídeo o audio">＋</button>
+    <input id="file" type="file" accept="image/*,video/mp4,video/webm,audio/*" hidden>
+    <input id="messageInput" placeholder="Escribe un mensaje..." maxlength="3000" disabled>
+    <button class="secondary" id="gif" title="Enviar GIF por enlace">GIF</button>
+    <button id="send" disabled>Enviar</button>
+   </div>
+   <div class="notice">Archivos: máximo 10 MB. Para GIF, pega un enlace directo o de Tenor/Giphy.</div>
+  </div>
+ </main>
+ <aside class="sidebar right">
+  <div class="section">TU ESTADO</div>
+  <div class="rightcontent"><select class="statusselect" id="status">
+   <option value="online">🟢 En línea</option><option value="idle">🌙 Ausente</option><option value="dnd">⛔ No molestar</option><option value="invisible">⚫ Invisible</option>
+  </select><p class="notice">Invisible te muestra desconectado a los demás.</p></div>
+  <div class="section">PERFIL</div><div class="rightcontent muted" id="profileHint">Selecciona una conversación para ver el perfil.</div>
+ </aside>
+</section>
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let me=null, socket=null, selected=null, friends=[], typingTimer=null, typingActive=false;
+let SERVER_URL = (localStorage.getItem("orbit_server_url") || (location.protocol === "http:" || location.protocol === "https:" ? location.origin : "")).replace(/\/$/, "");
+const DB_NAME="orbit-chat-local", DB_VERSION=1; let localDB=null;
+function openLocalDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains("messages")){const st=d.createObjectStore("messages",{keyPath:"key"});st.createIndex("conversation","conversation",{unique:false})}};req.onsuccess=()=>{localDB=req.result;resolve(localDB)};req.onerror=()=>reject(req.error)})}
+function localStore(message){if(!localDB||!me)return;const conversation=[message.fromId,message.toId].sort((a,b)=>a-b).join(":");const tx=localDB.transaction("messages","readwrite");tx.objectStore("messages").put({key:me.id+":"+message.id,conversation:me.id+":"+conversation,message});}
+function localRead(otherId){return new Promise((resolve,reject)=>{if(!localDB||!me)return resolve([]);const conversation=[me.id,otherId].sort((a,b)=>a-b).join(":");const req=localDB.transaction("messages").objectStore("messages").index("conversation").getAll(me.id+":"+conversation);req.onsuccess=()=>resolve(req.result.map(x=>x.message).sort((a,b)=>a.id-b.id));req.onerror=()=>reject(req.error)})}
+function serverUrl(){return SERVER_URL}
+function mediaUrl(url){return url && url.startsWith("/") ? SERVER_URL+url : url}
+async function exportBackup(){if(!localDB||!me)return alert("Inicia sesión primero.");const all=await new Promise((resolve,reject)=>{const r=localDB.transaction("messages").objectStore("messages").getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});const data={app:"Orbit Chat",version:1,exportedAt:new Date().toISOString(),userId:me.id,messages:all.filter(x=>x.key.startsWith(me.id+":"))};const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="orbit-chat-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);alert("Copia exportada. Guarda el archivo en un lugar seguro.")}
+async function importBackup(file){try{const data=JSON.parse(await file.text());if(data.app!=="Orbit Chat"||!Array.isArray(data.messages))throw Error("Archivo de copia no válido.");const tx=localDB.transaction("messages","readwrite");for(const item of data.messages){if(item.message&&item.conversation){const msg={...item.message,fromId:Number(item.message.fromId)===Number(data.userId)?me.id:item.message.fromId,toId:Number(item.message.toId)===Number(data.userId)?me.id:item.message.toId};const pair=[msg.fromId,msg.toId].sort((a,b)=>a-b).join(":");tx.objectStore("messages").put({key:me.id+":"+msg.id,conversation:me.id+":"+pair,message:msg})}}tx.oncomplete=()=>alert("Copia importada en este dispositivo.");tx.onerror=()=>alert("No se pudo importar la copia.")}catch(e){alert(e.message||"No se pudo leer la copia.")}}
+const statusNames={online:"En línea",idle:"Ausente",dnd:"No molestar",invisible:"Invisible",offline:"Desconectado"};
+function api(url,opts={}){return fetch(SERVER_URL+url,{...opts,credentials:"include",headers:{...(opts.body instanceof FormData?{}:{"Content-Type":"application/json"}),...(opts.headers||{})}}).then(async r=>{let d=await r.json();if(!r.ok)throw Error(d.error||"Error");return d})}
+function avatar(el,user){el.src=mediaUrl(user?.avatar)||"";el.style.display=user?.avatar?"block":"grid";el.alt=user?.username||"";if(!user?.avatar)el.textContent=(user?.username||"?").slice(0,1).toUpperCase()}
+function showError(id,e){$(id).textContent=e.message}
+async function enter(user){
+ me=user;$("auth").style.display="none";$("app").style.display="grid";$("myName").textContent=user.username;avatar($("myAvatar"),user);
+ socket=io(serverUrl(),{withCredentials:true});socket.on("presence",p=>{let u=[...friends].find(x=>x.id===p.userId);if(u){u.status=p.status;renderFriends()}if(selected?.id===p.userId)$("chatStatus").textContent=statusNames[p.status]||"Desconectado"});
+ socket.on("friends-changed",refresh);socket.on("message",m=>{localStore(m);if(selected&&(m.fromId===selected.id||m.toId===selected.id))appendMessage(m);});
+ socket.on("typing",t=>{if(selected?.id===t.from)$("typing").textContent=t.active?selected.username+" está escribiendo...":""});
+ await refresh();
+}
+async function refresh(){
+ const f=await api("/api/friends");friends=f.friends;
+ $("requests").innerHTML="";
+ f.incoming.forEach(r=>{let row=document.createElement("div");row.className="person";row.innerHTML=`<span class="person-name"></span><button>Aceptar</button>`;row.querySelector(".person-name").textContent=r.username;row.querySelector("button").onclick=async()=>{await api(`/api/friend-request/${r.id}/accept`,{method:"POST",body:"{}"});refresh()};$("requests").append(row)});
+ f.outgoing.forEach(u=>{let d=document.createElement("div");d.className="notice";d.textContent=u.username+" · pendiente";$("requests").append(d)});
+ renderFriends();
+ const all=await api("/api/users");$("people").innerHTML="";
+ all.users.filter(u=>!friends.some(f=>f.id===u.id)&&!f.outgoing.some(o=>o.id===u.id)&&!f.incoming.some(i=>i.userId===u.id)).forEach(u=>{
+  const row=document.createElement("div");row.className="person";const img=document.createElement("span");img.className="avatar small";img.textContent=u.username[0].toUpperCase();const name=document.createElement("span");name.className="person-name";name.textContent=u.username;const btn=document.createElement("button");btn.textContent="＋";btn.title="Enviar solicitud";btn.onclick=async e=>{e.stopPropagation();try{await api("/api/friend-request",{method:"POST",body:JSON.stringify({userId:u.id})});btn.textContent="✓";btn.disabled=true}catch(err){alert(err.message)}};row.append(img,name,btn);$("people").append(row);
+ });
+}
+function renderFriends(){
+ $("friendList").innerHTML="";
+ friends.forEach(u=>{let row=document.createElement("div");row.className="person"+(selected?.id===u.id?" active":"");let img=document.createElement("img");img.className="avatar";img.src=mediaUrl(u.avatar)||"";img.onerror=()=>{img.replaceWith(Object.assign(document.createElement("span"),{className:"avatar",textContent:u.username[0].toUpperCase()}))};let dot=document.createElement("span");dot.className="dot "+(u.status||"offline");let name=document.createElement("span");name.className="person-name";name.textContent=u.username;row.append(img,dot,name);row.onclick=()=>openChat(u);$("friendList").append(row)});
+}
+async function openChat(user){
+ selected=user;renderFriends();$("chatTitle").textContent=user.username;$("chatAvatar").textContent=user.username[0].toUpperCase();$("chatStatus").textContent=statusNames[user.status]||"Desconectado";$("profileHint").textContent=user.username+" · "+(statusNames[user.status]||"Desconectado");$("messageInput").disabled=false;$("send").disabled=false;$("messages").innerHTML="";$("typing").textContent="";
+ let messages=[];try{const data=await api("/api/messages/"+user.id);messages=data.messages;messages.forEach(localStore)}catch(e){messages=await localRead(user.id);if(!messages.length){$("messages").innerHTML="<div class=empty>Sin conexión y sin mensajes guardados localmente.</div>";return}}messages.forEach(appendMessage);$("messages").scrollTop=$("messages").scrollHeight;$("messageInput").focus();
+}
+function appendMessage(m){
+ if(!selected)return;
+ const wrap=document.createElement("div");wrap.className="msg";const img=document.createElement("img");img.className="avatar";const sender=m.fromId===me.id?me:selected;img.src=mediaUrl(sender.avatar)||"";img.onerror=()=>{img.style.display="none"};const body=document.createElement("div");body.className="msgbody";const meta=document.createElement("div");meta.className="msgmeta";const strong=document.createElement("strong");strong.textContent=sender.username;const time=document.createElement("time");time.textContent=new Date(m.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});meta.append(strong,time);const text=document.createElement("div");text.className="bubble";text.textContent=m.body||"";
+ if(m.mediaUrl){let media;if(m.mediaType.startsWith("image/")||m.mediaType==="image/gif"){media=document.createElement("img");media.src=mediaUrl(m.mediaUrl);media.alt="Archivo enviado"}else if(m.mediaType.startsWith("video/")){media=document.createElement("video");media.src=mediaUrl(m.mediaUrl);media.controls=true}else if(m.mediaType.startsWith("audio/")){media=document.createElement("audio");media.src=mediaUrl(m.mediaUrl);media.controls=true}else{media=document.createElement("a");media.href=mediaUrl(m.mediaUrl);media.textContent="Abrir archivo";media.target="_blank";media.rel="noopener"}text.append(media)}
+ body.append(meta,text);wrap.append(img,body);$("messages").append(wrap);$("messages").scrollTop=$("messages").scrollHeight;
+}
+async function sendMessage(body="",media=null){
+ if(!selected)return;
+ if(!body.trim()&&!media)return;
+ socket.emit("private-message",{to:selected.id,body,mediaUrl:media?.url||"",mediaType:media?.type||""});
+ $("messageInput").value="";setTyping(false);
+}
+function setTyping(active){if(!socket||!selected||typingActive===active)return;typingActive=active;socket.emit("typing",{to:selected.id,active})}
+$("login").onclick=async()=>{try{saveServer();let d=await api("/api/login",{method:"POST",body:JSON.stringify({username:$("username").value,password:$("password").value})});enter(d.user)}catch(e){showError("authError",e)}};
+$("register").onclick=async()=>{try{saveServer();let d=await api("/api/register",{method:"POST",body:JSON.stringify({username:$("username").value,password:$("password").value})});enter(d.user)}catch(e){showError("authError",e)}};
+$("logout").onclick=async()=>{await api("/api/logout",{method:"POST",body:"{}"});location.reload()};
+$("status").onchange=async()=>{await api("/api/status",{method:"POST",body:JSON.stringify({status:$("status").value})});$("myStatusText").textContent=statusNames[$("status").value]};
+$("avatarBtn").onclick=()=>$("avatarFile").click();
+$("avatarFile").onchange=async()=>{if(!$("avatarFile").files[0])return;let fd=new FormData();fd.append("file",$("avatarFile").files[0]);try{let d=await api("/api/avatar",{method:"POST",body:fd});me.avatar=mediaUrl(d.avatar);avatar($("myAvatar"),me)}catch(e){alert(e.message)}};
+$("attach").onclick=()=>$("file").click();
+$("file").onchange=async()=>{let file=$("file").files[0];if(!file)return;if(file.size>10*1024*1024){alert("Máximo 10 MB");return}let fd=new FormData();fd.append("file",file);try{let d=await api("/api/upload",{method:"POST",body:fd});await sendMessage("",{...d,url:mediaUrl(d.url)})}catch(e){alert(e.message)}$("file").value=""};
+$("gif").onclick=()=>{let url=prompt("Pega el enlace directo del GIF (por ejemplo, de Tenor o Giphy):");if(url){try{let u=new URL(url);if(!["http:","https:"].includes(u.protocol))throw Error();sendMessage("",{url:u.href,type:"image/gif"})}catch{alert("Enlace no válido")}}};
+$("send").onclick=()=>sendMessage($("messageInput").value);
+$("messageInput").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage($("messageInput").value)}};
+$("messageInput").oninput=()=>{setTyping(true);clearTimeout(typingTimer);typingTimer=setTimeout(()=>setTyping(false),1200)};
+function saveServer(){let value=$("serverUrl").value.trim();if(!value)value=location.origin;try{const u=new URL(value);if(!["http:","https:"].includes(u.protocol))throw Error();SERVER_URL=u.origin;localStorage.setItem("orbit_server_url",SERVER_URL);$("serverUrl").value=SERVER_URL}catch{$("authError").textContent="Dirección del servidor no válida.";throw Error("Servidor no válido")}}
+$("serverUrl").value=SERVER_URL;
+$("backupExport").onclick=exportBackup;$("backupExportTop").onclick=exportBackup;
+$("backupImport").onclick=()=>$ ("backupFile").click();$("backupImportTop").onclick=()=>$ ("backupFile").click();
+$("myAvatar").onclick=()=>$ ("avatarFile").click();$("myAvatar").style.cursor="pointer";
+$("backupFile").onchange=()=>{const f=$("backupFile").files[0];if(f)importBackup(f);$("backupFile").value=""};
+(async()=>{try{await openLocalDB();let d=await api("/api/me");enter(d.user)}catch{try{await openLocalDB()}catch{}}})();
+</script>
+</body></html>

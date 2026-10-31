@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: orbit-chat
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    disk:
+      name: orbit-chat-data
+      mountPath: /opt/render/project/src/storage
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: STORAGE_DIR
+        value: /opt/render/project/src/storage
