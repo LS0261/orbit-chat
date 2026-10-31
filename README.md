@@ -1,4 +1,4 @@
-# Orbit Chat 1.2 — Android + respaldo local
+# Orbit Chat 1.3 — Android + respaldo local
 
 Este proyecto contiene el servidor web (Express/Socket.IO/sql.js), el frontend adaptable a móvil y la configuración Capacitor para generar un APK Android. El APK necesita conectarse a un servidor Orbit Chat público: al abrirlo, escribe la URL HTTPS del servidor en el campo **Servidor de Orbit Chat**.
 
@@ -55,8 +55,19 @@ La copia local no reemplaza el respaldo del servidor. Si borras los datos de la 
 
 En la pantalla de acceso, en **Servidor de Orbit Chat**, escribe la URL HTTPS que Render (u otro host) asigne a tu servidor, por ejemplo `https://tu-orbit-chat.onrender.com`. No uses `localhost` para hablar con amigos por Internet.
 
+## 5. Mejoras de la versión 1.3
+
+- Editor de perfil con nombre visible y descripción; el nombre de acceso sigue siendo el mismo para no romper las cuentas existentes.
+- La foto de perfil puede elegirse desde la galería del dispositivo en Android.
+- El botón de adjuntar muestra un selector dentro de Orbit Chat para elegir entre fotos/vídeos y otros archivos. En Android, fotos y vídeos se seleccionan desde la galería del sistema; los documentos desde el selector de archivos.
+- Los mensajes consecutivos del mismo usuario se agrupan visualmente.
+- El chat conserva la posición de lectura si estás revisando mensajes anteriores y solo baja automáticamente cuando ya estabas al final.
+- Avisos dentro de la app y notificaciones del sistema cuando el permiso está disponible. Las notificaciones de sistema no son push garantizadas si Android suspende o cierra la app; para eso haría falta configurar un servicio push.
+- Se amplió la carga de archivos comunes (PDF, documentos, hojas de cálculo, presentaciones y archivos de texto), manteniendo el límite de 10 MB.
+
 ## Notas
 
 - El APK de este workflow es una compilación debug para pruebas, no una versión firmada de Play Store.
 - Las conexiones en tiempo real usan Socket.IO; PeerJS no es necesario para mensajes. Puede añadirse luego para llamadas P2P.
 - El almacenamiento local de mensajes es por dispositivo y por cuenta iniciada.
+- `npm run build:web` ahora empaqueta el selector nativo de archivos; por eso ejecuta `npm install` antes de compilar y `npx cap sync android` después de cambiar dependencias.
